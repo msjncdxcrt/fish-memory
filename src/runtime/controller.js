@@ -428,7 +428,11 @@ export class Controller {
     #preset() { return presetSnapshot(this.host.readPreset?.() ?? {}); }
     #auxiliaryPreferences() { if (this.store?.state.preferences?.presetApplication) return []; return selectedPreferences(this.store?.state.preferences?.preset, this.#preset()); }
     #application() { return applicationSnapshot(this.host.readPreset?.() ?? {}); }
-    #applicationEntries() { return selectedApplicationEntries(this.store?.state.preferences?.presetApplication, this.#application()); }
+    #applicationEntries() {
+        const fromPreset = selectedApplicationEntries(this.store?.state.preferences?.presetApplication, this.#application());
+        const custom = this.store?.state.preferences?.presetApplication?.customEntries ?? [];
+        return [...fromPreset, ...custom];
+    }
     async scanPresetApplication() {
         invariant(this.store && !this.view().activity, '请等待存档载入及当前任务完成');
         const preset = this.#application(), store = this.store, bookName = this.host.snapshot().bookName;
@@ -450,7 +454,7 @@ export class Controller {
             throw error;
         } finally { this.#endActivity(activity); }
     }
-    async savePresetApplication(ids, fingerprint, positions) {
+    async savePresetApplication(ids, fingerprint, positions, customEntries = [], customSources = []) {
         invariant(this.store && !this.view().activity, '请等待存档载入及当前任务完成');
         const epoch = this.#epoch, chatId = this.host.snapshot().chatId, store = this.store, bookName = this.host.snapshot().bookName;
         invariant(store.state.bookName === bookName, '请等待当前世界书载入');
@@ -461,7 +465,9 @@ export class Controller {
         await store.idle();
         this.#assertCurrent(epoch, chatId);
         invariant(this.store === store && this.host.snapshot().bookName === bookName && this.#application().fingerprint === fingerprint && !this.view().activity, '预设或任务状态已改变，请重试');
-        await store.updatePreferences({ presetApplication: { name: preset.name, fingerprint, selectedIds, ...(Object.keys(placement).length ? { positions: placement } : {}) }, preset: null });
+        const existing = this.store?.state?.preferences?.presetApplication ?? {};
+        const merged = { ...existing, name: preset.name, fingerprint, selectedIds, ...(Object.keys(placement).length ? { positions: placement } : {}), ...(customEntries.length ? { customEntries } : (existing.customEntries ? { customEntries: existing.customEntries } : {})), ...(customSources.length ? { customSources } : (existing.customSources ? { customSources: existing.customSources } : {})) };
+        await store.updatePreferences({ presetApplication: merged, preset: null });
         this.#assertCurrent(epoch, chatId);
         this.#applicationDraft = null;
         this.#state('预设副本已应用到此存档的辅助请求');
