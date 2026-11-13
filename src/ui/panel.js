@@ -1353,7 +1353,7 @@ export function mountPanel(container, controller, { exportProblem, statusSlot = 
         page.append(h('p', 'dwm-muted', '导入酒馆预设 JSON 文件，从中挑选条目一并注入辅助请求。与上方预设应用同步存档，不改酒馆正文预设。'));
 
         // 文件导入按钮
-        const importLabel = h('label', 'dwm-button dwm-button-ghost');
+        const importLabel = h('label', 'dwm-button dwm-ghost');
         importLabel.style.cursor = 'pointer';
         importLabel.textContent = '＋ 导入预设文件';
         const fileInput = h('input', '');
@@ -1405,7 +1405,7 @@ export function mountPanel(container, controller, { exportProblem, statusSlot = 
             const srcHeader = h('div', 'dwm-muted');
             srcHeader.style.cssText = 'font-size:0.85em;padding:4px 8px;display:flex;justify-content:space-between;align-items:center';
             const srcName = h('span', ''); srcName.textContent = srcFile.name;
-            const removeFileBtn = h('button', 'dwm-button dwm-button-ghost');
+            const removeFileBtn = h('button', 'dwm-button dwm-ghost');
             removeFileBtn.textContent = '移除'; removeFileBtn.style.fontSize = '0.8em'; removeFileBtn.style.padding = '1px 6px';
             removeFileBtn.disabled = disabled;
             removeFileBtn.addEventListener('click', () => {
