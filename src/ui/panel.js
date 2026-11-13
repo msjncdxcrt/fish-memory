@@ -63,6 +63,7 @@ export function mountPanel(container, controller, { exportProblem, statusSlot = 
     let ruleNL = '', ruleScript = '', ruleOutput = '', ruleMatch = { field: 'title', op: 'contains', value: '', action: 'lock', limit: '' };
     let recentTurnsDraft = null, timeoutDraft = null, cadenceDraft = null, mvuDraft = null, lastSaveId = null, localPreview = null;
     let applicationSelection = new Set(), applicationPositions = {}, applicationKey = null;
+    let customSources = [], customEntrySelection = new Set(), customEntryPositions = {};
     let connectionChoice = null, profileNameDraft = '', connectionDraftKey = null;
     const entryDrafts = new Map(), poolDrafts = new Map(), expanded = new Set(), scrollPositions = new Map();
     const connectionDraft = { endpoint: '', model: '', apiKey: '', maxOutputTokens: undefined };
@@ -1300,6 +1301,9 @@ export function mountPanel(container, controller, { exportProblem, statusSlot = 
             applicationKey = key;
             applicationSelection = new Set(draft?.selectedIds ?? (preset.stale ? [] : preset.saved?.selectedIds) ?? []);
             applicationPositions = { ...(preset.stale ? {} : preset.saved?.positions ?? {}) };
+            customSources = [...(preset.saved?.customSources ?? [])];
+            customEntrySelection = new Set((preset.saved?.customEntries ?? []).map(e => e.id));
+            customEntryPositions = Object.fromEntries((preset.saved?.customEntries ?? []).filter(e => e.position).map(e => [e.id, e.position]));
         }
         const disabled = !view.save || Boolean(view.activity);
         page.append(heading('预设应用', h('span', 'dwm-muted', `${preset.name || '当前预设不可读取'} · 已应用 ${preset.stale ? 0 : preset.saved?.selectedIds?.length ?? 0} 条`)));
@@ -1307,7 +1311,8 @@ export function mountPanel(container, controller, { exportProblem, statusSlot = 
         if (help.has('preset')) page.append(h('p', 'dwm-helptext', '“放前面”在鱼忆的任务之前，“放最后”在任务输入之后、整个请求的最后，默认沿用预设本身的位置。放最后的条目离输出最近，若要求写正文或改变输出格式，可能让辅助任务失败。条目越多，每次辅助请求越贵。'));
         if (preset.stale) page.append(h('p', 'dwm-warning', '原预设已变化，旧选择暂停应用。请重新检查并应用。'));
         if (!preset.saved && view.preset?.saved?.selected?.length) page.append(h('p', 'dwm-muted', '旧版已确认的语言偏好仍生效；应用这里的选择后会替换旧偏好。'));
-        if (!preset.entries.length) { page.append(h('p', 'dwm-empty', '当前没有可读取的聊天补全预设文本条目。不影响使用鱼忆。')); return; }
+        if (!preset.entries.length) { page.append(h('p', 'dwm-empty', '当前没有可读取的聊天补全预设文本条目。不影响使用鱼忆。')); }
+        else {
         if (draft) page.append(h('p', 'dwm-notice', '已生成推荐，可以继续调整，点“应用”后生效。'));
         const list = h('div', 'dwm-group');
         for (const entry of preset.entries) {
@@ -1328,10 +1333,107 @@ export function mountPanel(container, controller, { exportProblem, statusSlot = 
             button('全部关闭', () => { applicationSelection = new Set(); render(); }, { disabled, ghost: true }),
             button('让模型推荐', () => call(() => controller.scanPresetApplication()), { disabled, title: '会调用一次模型' }),
             button('应用', () => call(async () => {
+                const builtCustomEntries = [];
+                for (const src of customSources) {
+                    for (const entry of src.entries) {
+                        if (customEntrySelection.has(entry.id)) {
+                            builtCustomEntries.push({ ...entry, position: customEntryPositions[entry.id] ?? entry.position ?? 'head' });
+                        }
+                    }
+                }
                 await controller.savePresetApplication([...applicationSelection], preset.fingerprint,
-                    Object.fromEntries(Object.entries(applicationPositions).filter(([id]) => applicationSelection.has(id))));
+                    Object.fromEntries(Object.entries(applicationPositions).filter(([id]) => applicationSelection.has(id))),
+                    builtCustomEntries, customSources);
                 applicationKey = null;
             }, '已应用，可在“记录 → 收发”核对实际请求'), { primary: true, disabled })));
+        } // end else (preset.entries.length)
+
+        // === 自定义条目区 ===
+        page.append(heading('自定义预设条目'));
+        page.append(h('p', 'dwm-muted', '导入酒馆预设 JSON 文件，从中挑选条目一并注入辅助请求。与上方预设应用同步存档，不改酒馆正文预设。'));
+
+        // 文件导入按钮
+        const importLabel = h('label', 'dwm-button dwm-button-ghost');
+        importLabel.style.cursor = 'pointer';
+        importLabel.textContent = '＋ 导入预设文件';
+        const fileInput = h('input', '');
+        fileInput.type = 'file'; fileInput.accept = '.json'; fileInput.multiple = true; fileInput.style.display = 'none';
+        fileInput.addEventListener('change', () => {
+            const files = [...fileInput.files];
+            if (!files.length) return;
+            let pending = files.length;
+            for (const file of files) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        const prompts = Array.isArray(data) ? data : (data.prompts ?? data.entries ?? []);
+                        if (!prompts.length) { pending--; if (!pending) render(); return; }
+                        const entries = prompts.filter(p => p.content || p.text).map(p => ({
+                            id: `custom-${file.name}-${p.identifier ?? p.id ?? p.name ?? Math.random().toString(36).slice(2)}`,
+                            title: p.name ?? p.title ?? p.identifier ?? '(无标题)',
+                            content: p.content ?? p.text ?? '',
+                            role: p.role ?? 'system',
+                            position: p.position ?? 'head',
+                        }));
+                        const idx = customSources.findIndex(s => s.name === file.name);
+                        if (idx >= 0) customSources[idx] = { name: file.name, entries };
+                        else customSources.push({ name: file.name, entries });
+                    } catch (_) { /* 格式错误静默跳过 */ }
+                    pending--;
+                    if (!pending) render();
+                };
+                reader.readAsText(file);
+            }
+            fileInput.value = '';
+        });
+        importLabel.append(fileInput);
+        const customActionsRow = h('div', 'dwm-row');
+        customActionsRow.append(importLabel);
+        if (customSources.length) {
+            const clearAllBtn = button('清空全部自定义', () => {
+                customSources = []; customEntrySelection = new Set(); customEntryPositions = {}; render();
+            }, { disabled, ghost: true });
+            customActionsRow.append(clearAllBtn);
+        }
+        page.append(customActionsRow);
+
+        // 已导入文件的条目列表
+        for (const srcFile of customSources) {
+            if (!srcFile.entries.length) continue;
+            const srcGroup = h('div', 'dwm-group');
+            const srcHeader = h('div', 'dwm-muted');
+            srcHeader.style.cssText = 'font-size:0.85em;padding:4px 8px;display:flex;justify-content:space-between;align-items:center';
+            const srcName = h('span', ''); srcName.textContent = srcFile.name;
+            const removeFileBtn = h('button', 'dwm-button dwm-button-ghost');
+            removeFileBtn.textContent = '移除'; removeFileBtn.style.fontSize = '0.8em'; removeFileBtn.style.padding = '1px 6px';
+            removeFileBtn.disabled = disabled;
+            removeFileBtn.addEventListener('click', () => {
+                for (const e of srcFile.entries) { customEntrySelection.delete(e.id); delete customEntryPositions[e.id]; }
+                customSources = customSources.filter(s => s !== srcFile); render();
+            });
+            srcHeader.append(srcName, removeFileBtn);
+            srcGroup.append(srcHeader);
+            for (const entry of srcFile.entries) {
+                const on = customEntrySelection.has(entry.id);
+                const pos = customEntryPositions[entry.id] ?? entry.position ?? 'head';
+                const sw = toggle(entry.title, on, `role: ${entry.role ?? 'system'}`, value => {
+                    if (value) customEntrySelection.add(entry.id); else customEntrySelection.delete(entry.id); render();
+                }, disabled);
+                const controlArea = h('div', 'dwm-setting-control');
+                if (on) controlArea.append(segments([['head', '放前面'], ['tail', '放最后']], pos, value => {
+                    customEntryPositions[entry.id] = value; render();
+                }, { key: `custom-position-${entry.id}`, small: true }));
+                controlArea.append(sw.switchControl); sw.append(controlArea);
+                const entrySource = details('原文', `custom-entry-${entry.id}`, 'dwm-disclosure dwm-inline-disclosure');
+                entrySource.append(h('pre', 'dwm-preset-source', entry.content));
+                sw.labelBox.append(entrySource); srcGroup.append(sw);
+            }
+            page.append(srcGroup);
+        }
+        if (customSources.length) {
+            page.append(h('p', 'dwm-muted', `已选 ${customEntrySelection.size} 条自定义条目，点上方"应用"后生效。`));
+        }
     }
     function renderConnection(page, view) {
         if (view.connectionMode === 'test') { page.append(h('p', 'dwm-notice', '演示模式：当前使用模拟模型，没有真实 API 请求。')); return; }
