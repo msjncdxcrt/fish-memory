@@ -2,6 +2,7 @@ import { readStreamResponse } from './stream-response.js';
 import { throwIfAborted, combineSignals, timeoutSignal } from '../platform/abort.js';
 import { invariant, plainText } from '../core/util.js';
 import { DEFAULT_SETTINGS, validTimeout } from '../core/state.js';
+import { applyTaskContext } from './prompts.js';
 
 /** Detach cancelled consumers even when the host cannot stop its underlying request. */
 export async function untilAborted(operation, signal) {
@@ -321,7 +322,7 @@ export const PRESET_ROLES = Object.freeze(['system', 'user', 'assistant']);
 export function requestMessages({ system, input, head = [], tail = [], recovery = false }) {
     const wrap = items => (Array.isArray(items) ? items : []).filter(item => typeof item?.content === 'string' && item.content)
         .map(item => ({ role: PRESET_ROLES.includes(item.role) ? item.role : 'system', content: item.content }));
-    const task = { role: 'system', content: String(system ?? '') };
+    const task = { role: 'system', content: applyTaskContext(system) };
     const material = { role: 'user', content: String(input ?? '') };
     // On the second attempt the task text already ends with the restatement;
     // repeating it after the input keeps it adjacent to the model's next turn.

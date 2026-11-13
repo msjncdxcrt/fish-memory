@@ -32,6 +32,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
     selectionLimit: 16,
     selectionChars: 24000,
     compactChars: 48000,
+    // Auxiliary task frame: 'builtin' keeps the shipped archivist text.
+    taskContext: 'builtin',
     mvuEnabled: false,
     mvuFields: [],
     mvuBookName: null,

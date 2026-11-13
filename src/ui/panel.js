@@ -5,6 +5,7 @@ import { createTraceViewer } from './trace-viewer.js';
 import { createPromptPreview } from './prompt-preview.js';
 import { createActivityIndicator } from './activity.js';
 import { DEFAULT_SETTINGS, MAINTENANCE_EVERY_MAX, templateHint, entryTier, gatedTier } from '../core/state.js';
+import { TASK_CONTEXT_OPTIONS } from '../agents/prompts.js';
 import { lazyAttention, lazyHeadline, lazyRecord, lazyClock } from './lazy-copy.js';
 
 const TIERS = [['constant', '常驻', '每轮都发送'], ['onDemand', '按需', '发送前由鱼忆判断要不要发'], ['off', '关闭', '不发送，后台也不再更新']];
@@ -1223,6 +1224,13 @@ export function mountPanel(container, controller, { exportProblem, statusSlot = 
                 value => { dialog = value ? 'lazy-enable' : 'lazy-to-manual'; render(); }) : null,
             toggle('鱼忆总开关', Boolean(current.enabled), '关闭后所有存档暂停，已有资料保留', value => call(() => controller.updateSettings({ enabled: value }))),
             view.save ? toggle('本存档启用记忆', view.saveEnabled !== false, '只影响当前存档', value => call(() => controller.setSaveEnabled(value))) : null));
+        page.append(group(setting('任务框架（破限词）',
+            segments(TASK_CONTEXT_OPTIONS.map(([id, name]) => [id, name]), current.taskContext ?? DEFAULT_SETTINGS.taskContext,
+                value => call(() => controller.updateSettings({ taskContext: value }),
+                    `任务框架已切换：${(TASK_CONTEXT_OPTIONS.find(([id]) => id === value) ?? [])[1] ?? value}`),
+                { key: 'task-context', small: true }),
+            { description: '替换每个辅助任务开头的档案员段，对下一次请求生效', helpKey: 'task-context',
+                helpText: '扫描、整理和选材请求共用这一层开场白。各选项只替换这段文字，任务说明、字段和 JSON 格式完全不变；先用原生，哪一版在长对话里更稳就留哪一版。' })));
         const worldbookOnly = current.memoryMode === 'worldbook';
         const savedEvery = current.maintenanceEvery ?? DEFAULT_SETTINGS.maintenanceEvery;
         const cadenceMode = cadenceDraft?.mode ?? ([1, 3, 5].includes(Number(savedEvery)) ? String(savedEvery) : 'custom');

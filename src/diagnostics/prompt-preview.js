@@ -2,7 +2,7 @@ import { compactPlans } from '../agents/compact-plan.js';
 import { clone, isPrefix } from '../core/util.js';
 import { DEFAULT_SETTINGS, makeSourceEntry, entryText, normalizeScopeId, readableScopes, entryScope } from '../core/state.js';
 import { applyRules, compileRules, discoverRules, evaluateRules } from '../rules/index.js';
-import { INITIALIZE, ALIGN_STRATEGY, MAINTAIN, MAINTAIN_REWRITE, SELECT, COMPACT } from '../agents/prompts.js';
+import { INITIALIZE, ALIGN_STRATEGY, MAINTAIN, MAINTAIN_REWRITE, SELECT, COMPACT, applyTaskContext } from '../agents/prompts.js';
 import { initializeRequest, selectRequest, maintainRequest, compactRequest, requestBatches, selectionMessages, isReadableMessage, INITIALIZATION_BATCH_ITEMS } from '../agents/requests.js';
 import { prescan } from '../agents/prescan.js';
 import { maintenanceFocus, triggeredIds } from '../core/focus.js';
@@ -14,7 +14,7 @@ const AGENTS = {
 };
 
 function stage(agent, id, title, status, explanation, request, uncertainties = []) {
-    return { id, title, agent: { ...agent }, kind: 'request', status, explanation, system: request.system, input: request.input ?? null, uncertainties };
+    return { id, title, agent: { ...agent }, kind: 'request', status, explanation, system: applyTaskContext(request.system), input: request.input ?? null, uncertainties };
 }
 function guarded(save, compiledRules) {
     const copy = clone(save);
