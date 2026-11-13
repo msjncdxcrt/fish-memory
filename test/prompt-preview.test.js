@@ -1,3 +1,4 @@
+import { applyTaskContext } from '../src/agents/prompts.js';
 import {compactPlans} from '../src/agents/compact-plan.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -19,7 +20,7 @@ function fixture() {
     return { save, snapshot, rawEntries, settings: { ...DEFAULT_SETTINGS, enabled: true }, at: '2026-10-06T00:00:00.000Z' };
 }
 const get = (preview, id) => preview.stages.find(stage => stage.id === id);
-const inputAndSystem = value => ({ system: value.system, input: value.input });
+const inputAndSystem = value => ({ system: applyTaskContext(value.system), input: value.input });
 
 test('preview batches and conditional stages retain the three explicit Fish Agent responsibilities', () => {
     const f = fixture();

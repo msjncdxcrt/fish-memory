@@ -1,3 +1,4 @@
+import { applyTaskContext } from '../src/agents/prompts.js';
 import { APPLICATION_SCAN } from '../src/agents/preset-application.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -89,7 +90,7 @@ test('preset application manual override reaches preview and actual requests, pe
     assert.match(JSON.stringify(stage.head), /不应读取/);
     await f.c.generationBefore();
     const actual = f.calls.findLast(r => r.purpose === 'select');
-    assert.equal(actual.system, stage.system);
+    assert.equal(applyTaskContext(actual.system), stage.system);
     assert.deepEqual(actual.head, stage.head);
     f.state.chatId = 'second'; await f.c.chatChanged();
     assert.equal(f.c.view().presetApplication.saved, null);

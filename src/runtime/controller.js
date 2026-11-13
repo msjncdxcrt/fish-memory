@@ -107,7 +107,7 @@ export class Controller {
     #storyDirty = false;
     constructor(host, { model, traces = createTraceStore(), settings = {}, persistSettings = async () => {}, chooseFallback = async () => 'cancel', connectionStore = null, lazyClock = {} } = {}) {
         this.host = host; this.settings = { ...DEFAULT_SETTINGS, ...settings, ...normalizeTimeoutSettings(settings) };
-        setTaskContext(this.settings.taskContext);
+        setTaskContext(this.settings.taskContext, this.settings.taskContextCustom);
         if (!Number.isInteger(this.settings.maintenanceEvery) || this.settings.maintenanceEvery < 1 || this.settings.maintenanceEvery > MAINTENANCE_EVERY_MAX) this.settings.maintenanceEvery = DEFAULT_SETTINGS.maintenanceEvery;
         // Player-only, page-lifetime diagnostics. Never include this in view/save/agent data.
         this.traces = traces;
@@ -1185,6 +1185,7 @@ export class Controller {
         invariant(Number.isInteger(next.scanConcurrency) && next.scanConcurrency >= 1 && next.scanConcurrency <= 6, '扫描并发数应为 1–6');
         invariant(REASONING_EFFORTS.includes(next.auxReasoningEffort), '辅助思考强度无效');
         invariant(TASK_CONTEXT_OPTIONS.some(([id]) => id === next.taskContext), '任务框架选项无效');
+        invariant(typeof next.taskContextCustom === 'string' && next.taskContextCustom.length <= 20000, '自定义开场白应为不超过 20000 字的文本');
         invariant(Number.isInteger(next.maintenanceEvery) && next.maintenanceEvery >= 1 && next.maintenanceEvery <= MAINTENANCE_EVERY_MAX, `自动维护间隔应为 1–${MAINTENANCE_EVERY_MAX} 次 AI 回复`);
         for (const key of ['timeoutMs', 'initializationTimeoutMs']) {
             invariant(validTimeout(next[key]), '辅助模型超时时间应为 0（关闭插件限时）或 1000–86400000 毫秒的整数');
@@ -1195,7 +1196,7 @@ export class Controller {
         invariant(Array.isArray(next.mvuFields) && next.mvuFields.length <= 16 && next.mvuFields.every(field => typeof field.path === 'string' && typeof field.label === 'string'), 'MVU 最多配置16个字段，每项需有路径和名称');
         await this.persistSettings(next);
         this.settings = next;
-        setTaskContext(next.taskContext);
+        setTaskContext(next.taskContext, next.taskContextCustom);
         if (!next.enabled || !next.lazyMode) this.#lazy?.stop();
         if (!next.enabled) {
             this.#yieldBackground(); this.host.clearPlan();

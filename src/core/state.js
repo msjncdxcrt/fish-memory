@@ -32,8 +32,10 @@ export const DEFAULT_SETTINGS = Object.freeze({
     selectionLimit: 16,
     selectionChars: 24000,
     compactChars: 48000,
-    // Auxiliary task frame: 'builtin' keeps the shipped archivist text.
-    taskContext: 'builtin',
+    // Auxiliary task frame: one of the built-in jailbreak texts; 'builtin' keeps the shipped archivist text.
+    taskContext: 'fact',
+    // Non-empty text overrides the selected frame; edited in the panel.
+    taskContextCustom: '',
     mvuEnabled: false,
     mvuFields: [],
     mvuBookName: null,
