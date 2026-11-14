@@ -32,13 +32,14 @@ test('a custom opening wins over the selected frame and can be cleared', () => {
     assert.equal(taskContextText(), TASK_CONTEXT);
 });
 
-test('the shipped default frame is a built-in jailbreak variant', () => {
-    assert.equal(DEFAULT_TASK_CONTEXT, 'fact');
-    assert.equal(TASK_CONTEXT_OPTIONS[0][0], 'fact');
+test('the shipped default frame is the strongest built-in variant', () => {
+    assert.equal(DEFAULT_TASK_CONTEXT, 'overdrive');
+    assert.equal(TASK_CONTEXT_OPTIONS[0][0], 'overdrive');
     assert.equal(TASK_CONTEXT_OPTIONS.at(-1)[0], 'builtin');
+    assert.equal(TASK_CONTEXT_OPTIONS.length, 8);
     setTaskContext('nope', '');
-    assert.equal(applyTaskContext(INITIALIZE), TASK_CONTEXT_VARIANTS.fact + INITIALIZE.slice(TASK_CONTEXT.length));
-    setTaskContext('fact', '');
+    assert.equal(applyTaskContext(INITIALIZE), TASK_CONTEXT_VARIANTS.overdrive + INITIALIZE.slice(TASK_CONTEXT.length));
+    setTaskContext('overdrive', '');
 });
 
 test('foreign text is passed through and unknown keys fall back', () => {
@@ -46,6 +47,6 @@ test('foreign text is passed through and unknown keys fall back', () => {
     assert.equal(applyTaskContext('自定义预设条目原文'), '自定义预设条目原文');
     assert.equal(applyTaskContext(undefined), '');
     setTaskContext('nope');
-    assert.equal(applyTaskContext(TASK_CONTEXT), TASK_CONTEXT_VARIANTS.fact);
+    assert.equal(applyTaskContext(TASK_CONTEXT), TASK_CONTEXT_VARIANTS.overdrive);
     setTaskContext('fact');
 });
